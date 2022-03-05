@@ -1,14 +1,9 @@
 local skynet = require "skynet"
-
+local config = require "server_config"
 skynet.start(function ()
-    --skynet.newservice("login")
-    local gate = skynet.newservice("gated")
-    local conf = {
-        address = "127.0.0.1",
-        port = 8888,
-        maxclient = 1024,
-        nodelay = true,
-    }
-    skynet.call(gate,"lua","open",conf)
+    skynet.newservice("logind")
+    --local gate = skynet.newservice("gated")
+    --local conf = config.gated_conf
+    --skynet.call(gate,"lua","open",conf)
     skynet.exit()
 end)
