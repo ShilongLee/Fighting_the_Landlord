@@ -1,13 +1,18 @@
-package.cpath = "skynet/luaclib/?.so"
-package.path = "skynet/lualib/?.lua;service/?.lua" -- ?
+package.cpath = "/root/Fighting_the_Landlord/skynet/luaclib/?.so;/root/Fighting_the_Landlord/luaclib/?.so"
+package.path = "/root/Fighting_the_Landlord/skynet/lualib/?.lua;/root/Fighting_the_Landlord/service/?.lua;/root/Fighting_the_Landlord/etc/?.lua;/root/Fighting_the_Landlord/lualib/?.lua;/root/Fighting_the_Landlord/proto/?.lua;"
 local socket = require "client.socket"
 local sproto = require "sproto"
 local proto = require "pack_proto"
+local errorcode = require "error_code"
 local host = sproto.new(proto.logindmsg):host("package")
 local pack_req = host:attach(sproto.new(proto.logindmsg))
-local session = 0;
-local fd = socket.connect("127.0.0.1",6666)
-
+local addr = "127.0.0.1"
+local port = 6666
+local fd = socket.connect(addr, port)
+local session = 1
+local last = ""
+local logged = false
+local command = {}
 local function unpack(str)
     local size = #str
     if size < 2 then
@@ -20,18 +25,30 @@ local function unpack(str)
     return str:sub(3, 2 + len), str:sub(3 + len)
 end
 
-local msg = pack_req("sign_in", {
-    account = "lishilong",
-    password = "123456"
-},session)
+local socket = require "client.socket"
+print("输入:")
+local str = io.read()
+print(str)
 
-local pack = string.pack(">s2",msg)
-socket.send(fd,pack)
+-- 发送消息
+local msg = pack_req("sign_in", {
+    account = "lishilong1",
+    password = "asdas"
+}, session)
+local pack = string.pack(">s2", msg)
+socket.send(fd, pack)
+
+-- 接收回复
 local str = socket.recv(fd)
-while not str do
-    str = socket.recv(fd)
-end
 local res = unpack(str)
-local a,b,c = host:dispatch(res)
-print(a,b,c)
-print(c.address,c.port)
+local _, _, res = host:dispatch(res)
+
+-- 输出回复
+print("输出回复:")
+for k, v in pairs(res) do
+    print(k, v)
+end
+
+print("输入:")
+local str = io.read()
+print(str)
