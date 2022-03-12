@@ -26,9 +26,9 @@ local function unpack(str)
 end
 
 local socket = require "client.socket"
-print("输入:")
-local str = io.read()
-print(str)
+-- print("输入:")
+-- local str = io.read()
+-- print(str)
 
 -- 发送消息
 local msg = pack_req("sign_in", {
@@ -37,6 +37,7 @@ local msg = pack_req("sign_in", {
 }, session)
 local pack = string.pack(">s2", msg)
 socket.send(fd, pack)
+socket.usleep(100000)
 
 -- 接收回复
 local str = socket.recv(fd)
@@ -49,6 +50,6 @@ for k, v in pairs(res) do
     print(k, v)
 end
 
-print("输入:")
-local str = io.read()
-print(str)
+-- print("输入:")
+-- local str = io.read()
+-- print(str)

@@ -39,7 +39,7 @@ end
 
 local function read_fd() -- 从socket读取数据
     local str
-    while not str and str ~= "" do
+    while not str do
         str = socket.recv(fd)
     end
     return str
@@ -51,11 +51,7 @@ local function recv(last) -- recv从socket读取的数据
     if result then
         return result, last
     end
-    -- local r = read_fd()
-    local r = socket.recv(fd)
-    -- if not r then
-    --     return recv(last)
-    -- end
+    local r = read_fd()
     if r == "" then
         return nil, last
     end
