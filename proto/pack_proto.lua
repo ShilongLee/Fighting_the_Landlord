@@ -34,6 +34,7 @@ sign_in 1 {
 		result 0 : integer
 		address 1 : string
 		port 2 : integer
+		token 3 : integer
 	}
 }
 
@@ -46,9 +47,33 @@ sign_up 2 {
 		result 0 : integer
 		address 1 : string
 		port 2 : integer
+		token 3 :integer
 	}
 }
 
+]]
+
+proto.lobbymsg = sprotoparser.parse [[
+.package {
+	type 0 : integer
+	session 1 : integer
+}
+
+sign_out 1 {
+	request {}
+	response {
+		result 0 : integer
+	}
+}
+
+bind 2{
+	request {
+		token 0 : integer
+	}
+	response {
+		result 0 : integer
+	}
+}
 ]]
 
 return proto

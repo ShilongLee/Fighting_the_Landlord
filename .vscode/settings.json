@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "lua.h": "c",
+        "cerrno": "c",
+        "fstream": "c"
+    }
+}
