@@ -3,5 +3,6 @@
         "lua.h": "c",
         "cerrno": "c",
         "fstream": "c"
-    }
+    },
+    "lua.targetVersion": "5.3"
 }

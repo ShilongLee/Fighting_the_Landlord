@@ -6,19 +6,28 @@ local sproto = require "sproto"
 local config = require "server_config"
 local servernet = require "servernet"
 local mysql = require "skynet.db.mysql"
+local List = require "list"
+
 require "skynet.manager"
-local user_data = {} -- account -> user_data {account,score}
+local user_data = {} -- account -> user_data {account,score,gate_addr,ready}
 local conn = {} -- addr..fd->account
 local command = {} -- cmd of client
 local call = {} -- cmd of other service
-local Will_conn = {} -- token -> user_data {account,score}
+local Will_conn = {} -- token -> user_data {account,score,ready}
 local data_base
+
+local list
 
 function call.Reg(args)
     Will_conn[args.token] = args.user_data
+    Will_conn[args.token].ready = false
     skynet.timeout(10, function()
         Will_conn[args.token] = nil
     end)
+end
+
+local function echo(addr, fd, msg)
+    print("ip:" .. addr .. " fd:" .. fd .. "\t" .. msg)
 end
 
 function call.clear_online()
@@ -42,21 +51,50 @@ function call.sql_update_score(account)
     data_base:query(req)
 end
 
+function call.release_conn(addr, fd) -- 客户端断开连接时调用
+    if conn[fd] then
+        call.sql_on_line_false(conn[fd])
+        call.sql_update_score(conn[fd])
+        if user_data[conn[fd]].ready then
+            list:remove(conn[fd])
+        end
+        user_data[conn[fd]] = nil
+        conn[fd] = nil
+    end
+    socket.close(fd)
+    echo(addr, fd, "disconnect lobby")
+end
+
 local function conn_sql()
     local conf = config.mysql_conf
     return mysql.connect(conf)
-end
-
-local function echo(addr, fd, msg)
-    print("ip:" .. addr .. " fd:" .. fd .. "\t" .. msg)
 end
 
 function command.sign_out(fd)
     local account = conn[fd]
     call.sql_on_line_false(account)
     call.sql_update_score(account)
+    if user_data[account].ready then
+        list:remove(account)
+    end
     user_data[account] = nil
     conn[fd] = nil
+    return {
+        result = errorcode.ok
+    }
+end
+
+function command.ready(fd)
+    user_data[conn[fd]].ready = true
+    list:insert(conn[fd], user_data[conn[fd]])
+    return {
+        result = errorcode.ok
+    }
+end
+
+function command.cancel_ready(fd)
+    user_data[conn[fd]].ready = false
+    list:remove(conn[fd])
     return {
         result = errorcode.ok
     }
@@ -78,6 +116,14 @@ function command.bind(fd, args)
     }
 end
 
+function command.query_score(fd)
+    local user_data = user_data[conn[fd]]
+    return {
+        result = errorcode.ok,
+        user_data = user_data
+    }
+end
+
 local function request(func, args, response, fd, addr)
     echo(addr, fd, "require " .. func)
     local f = command[func]
@@ -94,17 +140,6 @@ local function request(func, args, response, fd, addr)
         pack = response(res)
     end
     return pack
-end
-
-function call.release_conn(addr, fd)
-    if conn[fd] then
-        call.sql_on_line_false(conn[fd])
-        call.sql_update_score(conn[fd])
-        user_data[conn[fd]] = nil
-        conn[fd] = nil
-    end
-    socket.close(fd)
-    echo(addr, fd, "disconnect lobby")
 end
 
 local function accept(fd, addr)
@@ -135,6 +170,7 @@ local function accept(fd, addr)
 end
 
 skynet.start(function()
+    list = List:new()
     data_base = conn_sql()
     call.clear_online()
     local conf = config.lobby_conf

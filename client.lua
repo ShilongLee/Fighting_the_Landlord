@@ -144,6 +144,7 @@ local function sign(arg)
     call_RPC(lobby_host, lobby_pack_req, "bind", {
         token = res.token
     })
+    command.query_score()
     logged = true -- 防止没登陆就发出指令
 end
 
@@ -162,6 +163,15 @@ function command.sign_out()
         address = "127.0.0.1",
         port = 6666
     })
+end
+
+function command.query_score()
+    local res = call_RPC(lobby_host, lobby_pack_req, "query_score")
+    if res.result == errorcode.ok then
+        print("user:"..res.user_data.account.."\nscore:"..res.user_data.score)
+    else
+        error.strerror(res.result)
+    end
 end
 
 local function check_cmd(cmd)

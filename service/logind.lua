@@ -35,6 +35,16 @@ local function check(user_data)
     return errorcode.ok
 end
 
+local function Reg_in_lobby(res, token)
+    skynet.send("LOBBY", "lua", "Reg", {
+        token = token,
+        user_data = {
+            account = res[1].account,
+            score = res[1].score
+        }
+    })
+end
+
 function Req_func.sign_in(user_data)
     local illegal = check(user_data)
     if illegal ~= errorcode.ok then
@@ -57,13 +67,7 @@ function Req_func.sign_in(user_data)
         }
     end
     token = token + 1
-    skynet.send("LOBBY", "lua", "Reg", {
-        token = token,
-        user_data = {
-            account = res[1].account,
-            score = res[1].score
-        }
-    })
+    Reg_in_lobby(res, token)
     return {
         result = errorcode.ok,
         address = config.lobby_conf.address,
@@ -90,13 +94,7 @@ function Req_func.sign_up(user_data)
         }
     end
     token = token + 1
-    skynet.send("LOBBY", "lua", "Reg", {
-        token = token,
-        user_data = {
-            account = res[1].account,
-            score = res[1].score
-        }
-    })
+    Reg_in_lobby(res, token)
     return {
         result = errorcode.ok,
         address = config.lobby_conf.address,

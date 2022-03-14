@@ -74,6 +74,33 @@ bind 2{
 		result 0 : integer
 	}
 }
+
+query_score 3{
+	request {}
+	response {
+		.data {
+			account 0 : string
+            score 1 : integer
+		}
+		result 0 : integer
+		user_data 1 : data
+	}
+}
+
+ready 4{
+	request {}
+	response {
+		result 0 : integer
+	}
+}
+
+cancel_ready 5{
+	request {}
+	response {
+		result 0 : integer
+	}
+}
+
 ]]
 
 return proto
