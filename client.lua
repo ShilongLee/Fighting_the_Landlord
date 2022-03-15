@@ -168,7 +168,7 @@ end
 function command.query_score()
     local res = call_RPC(lobby_host, lobby_pack_req, "query_score")
     if res.result == errorcode.ok then
-        print("user:"..res.user_data.account.."\nscore:"..res.user_data.score)
+        print("user:" .. res.user_data.account .. "\nscore:" .. res.user_data.score)
     else
         error.strerror(res.result)
     end
@@ -190,6 +190,14 @@ local function check_cmd(cmd)
         end
     end
     return true
+end
+
+function command.ready()
+    call_RPC(lobby_host, lobby_pack_req, "ready")
+end
+
+function command.cancel_ready()
+    call_RPC(lobby_host, lobby_pack_req, "cancel_ready")
 end
 
 function command.quit()

@@ -6,16 +6,17 @@ local sproto = require "sproto"
 local config = require "server_config"
 local servernet = require "servernet"
 local mysql = require "skynet.db.mysql"
-local List = require "list"
+local LIST = require "list"
 
 require "skynet.manager"
-local user_data = {} -- account -> user_data {account,score,gate_addr,ready}
-local conn = {} -- addr..fd->account
+local user_data = {} -- account -> user_data {account,score,gate_addr,ready,fd}
+local conn = {} -- fd->account
 local command = {} -- cmd of client
 local call = {} -- cmd of other service
 local Will_conn = {} -- token -> user_data {account,score,ready}
 local data_base
-
+local host = sproto.new(proto.lobbymsg):host("package")
+local pack_req = host:attach(sproto.new(proto.lobbymsg))
 local list
 
 function call.Reg(args)
@@ -86,7 +87,7 @@ end
 
 function command.ready(fd)
     user_data[conn[fd]].ready = true
-    list:insert(conn[fd], user_data[conn[fd]])
+    list:insert(conn[fd])
     return {
         result = errorcode.ok
     }
@@ -103,9 +104,10 @@ end
 function command.bind(fd, args)
     local token = args.token
     local data = Will_conn[token]
+    data.fd = fd
     Will_conn[token] = nil
     conn[fd] = data.account
-    if user_data[data.account] then
+    if user_data[data.account] and user_data[data.account].gate_addr and user_data[data.account].gate_port then
         -- 重连到战斗
     else
         user_data[data.account] = data
@@ -120,8 +122,31 @@ function command.query_score(fd)
     local user_data = user_data[conn[fd]]
     return {
         result = errorcode.ok,
-        user_data = user_data
+        user_data = {
+            account = user_data.account,
+            score = user_data.score
+        }
     }
+end
+
+local function notify_to_battle(fd)
+    local args
+    args.address = config.gated_conf.address
+    args.port = config.gated_conf.port
+    pack_req("notify_to_battle", args)
+end
+
+local function go_battle()
+    if list:get_length() >= 3 then
+        for i = 1, 3 do
+            local account = list:pop()
+            notify_to_battle(user_data[account].fd)
+            conn[user_data[account].fd] = nil
+            user_data[account].ready = false
+            user_data[account].gate_addr = config.gated_conf.address
+            user_data[account].gate_port = config.gated_conf.port
+        end
+    end
 end
 
 local function request(func, args, response, fd, addr)
@@ -146,7 +171,6 @@ local function accept(fd, addr)
     socket.start(fd)
     -- 初始化文件描述符和解包函数
     local last = ""
-    local host = sproto.new(proto.lobbymsg):host("package")
     -- 收包
     while true do
         local str
@@ -166,11 +190,12 @@ local function accept(fd, addr)
             call.release_conn(addr, fd)
             return
         end
+        go_battle()
     end
 end
 
 skynet.start(function()
-    list = List:new()
+    list = LIST:new()
     data_base = conn_sql()
     call.clear_online()
     local conf = config.lobby_conf

@@ -101,6 +101,14 @@ cancel_ready 5{
 	}
 }
 
+notify_to_battle 6{
+	request {
+		address 0 : string
+		port 1 : integer
+	}
+	response {}
+}
+
 ]]
 
 return proto

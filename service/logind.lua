@@ -7,7 +7,7 @@ local proto = require "pack_proto"
 local errorcode = require "error_code"
 local mysql = require "skynet.db.mysql"
 local servernet = require "servernet"
-local Req_func = {}
+local command = {}
 local data_base
 local token = 0
 
@@ -45,7 +45,7 @@ local function Reg_in_lobby(res, token)
     })
 end
 
-function Req_func.sign_in(user_data)
+function command.sign_in(user_data)
     local illegal = check(user_data)
     if illegal ~= errorcode.ok then
         return {
@@ -76,7 +76,7 @@ function Req_func.sign_in(user_data)
     }
 end
 
-function Req_func.sign_up(user_data)
+function command.sign_up(user_data)
     -- 检查用户名和密码是否合法
     local illegal = check(user_data)
     if illegal ~= errorcode.ok then
@@ -105,7 +105,7 @@ end
 
 local function request(func, args, response, fd, addr)
     echo(addr, fd, "require " .. func)
-    local f = Req_func[func]
+    local f = command[func]
     local res, pack
     if not f then
         res = {

@@ -1,16 +1,15 @@
 local list = {}
 
-function list:new_node(key, value)
+function list:new_node(key)
     return {
         key = key,
-        value = value,
         pre = nil,
         next = nil
     }
 end
 
-function list:insert(key, value)
-    local node = self:new_node(key, value)
+function list:insert(key)
+    local node = self:new_node(key)
     if not self.head then
         self.head = node
         self.tail = node
@@ -46,14 +45,17 @@ end
 
 function list:pop()
     if not self.head then
-        return nil, nil
+        return nil
     end
     local key = self.head.key
-    local value = self.head.value
     self.head = self.head.next
     self.length = self.length - 1
     self.map[key] = nil
-    return key, value
+    return key
+end
+
+function list:get_length()
+    return self.length
 end
 
 function list:new()
