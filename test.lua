@@ -1,4 +1,4 @@
-package.cpath = "luaclib/?.so;skynet/luaclib/?.so;"
+package.cpath = "luaclib/?.so;skynet/luaclib/?.so;lualib/?.lua"
 package.path = "skynet/lualib/?.lua;proto/?.lua;"
 local socket = require "clientsocket"
 local sproto = require "sproto"
