@@ -94,7 +94,10 @@ function command.sign_up(user_data)
         }
     end
     token = token + 1
-    Reg_in_lobby(res, token)
+    Reg_in_lobby({{
+        account = user_data.account,
+        score = 0
+    }}, token)
     return {
         result = errorcode.ok,
         address = config.lobby_conf.address,

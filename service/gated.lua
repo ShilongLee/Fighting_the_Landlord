@@ -1,59 +1,43 @@
 local skynet = require "skynet"
 local gateserver = require "snax.gateserver"
 local netpack = require "skynet.netpack"
-local proto = require "proto"
+local proto = require "pack_proto"
 local sproto = require "sproto"
 local config = require "server_config"
+require "skynet.manager"
 
 local handler = {}
-local lobby_server = {}
-local battle_server = {}
-local lobby_user_on = {} -- fd -> server addr
-local battle_user_on = {}
 local host = sproto.new(proto.gatedmsg):host("package")
-local response_func = {} -- fd 
 local conn = {}
+local call = {}
+local command = {}
 
-local function redirect(msgtype, msg, fd)
-    if msgtype == "lobby" then
-        skynet.redirect(lobby_user_on[fd], conn[fd], "client", msg)
-    elseif msgtype == "battle" then
-        skynet.redirect(battle_user_on[fd], conn[fd], "client", msg)
-    end
+local function echo(addr, fd, msg)
+    print("ip:" .. addr .. " fd:" .. fd .. "\t" .. msg)
 end
 
-local function lobby_select(fd)
-    local lobby
-    local lobby_sums = #lobby_server
-    if lobby_sums == 0 or lobby_server[1].on_line == config.lobby_max_players then
-        lobby = skynet.newservice("lobby")
-    else
-        lobby = lobby_server[fd % lobby_sums]
-    end
-    lobby_user_on[fd] = lobby
-    lobby_server.insert({
-        address = lobby,
-        on_line = 1
-    })
+function call.bind(args)
+    conn[args.fd] = args
+    gateserver.openclient(args.fd)
+    echo(args.addr, args.fd, "connect gated")
 end
 
 function handler.message(fd, msg, size)
-    local data = netpack.tostring(msg, size)
-    local _, packagename, args, response = host:dispatch(data)
-    response_func[packagename] = response
-    redirect(args.msgtype, args.msg, fd)
+    -- local data = netpack.tostring(msg, size)
+    -- local _, packagename, args, response = host:dispatch(data)
+    -- response_func[packagename] = response
+    -- redirect(args.msgtype, args.msg, fd)
 end
 
-function handler.connect(fd, ipaddr)
+function handler.connect(fd, addr)
     gateserver.openclient(fd)
-    conn[fd] = ipaddr
-    if not lobby_user_on then
-        lobby_select(fd)
-    end
+    echo(addr, fd, "connect gated")
 end
 
 function handler.disconnect(fd)
-    -- print(fd .. "disconnect")
+    -- skynet.call("GATED", "lua", "disconnect_from_battle", conn[fd])
+    gateserver.closeclient(fd)
+    print("disconnect gated")
 end
 
 function handler.error(fd, msg)
@@ -61,7 +45,14 @@ function handler.error(fd, msg)
 end
 
 function handler.open(source, conf)
-    print("gateserver start...........")
+    -- print("gateserver start...........")
+    skynet.register("GATED")
+end
+
+function handler.command(func, source, ...)
+    local f = call[func]
+    local res
+    res = f(...)
 end
 
 gateserver.start(handler)

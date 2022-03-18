@@ -13,6 +13,7 @@ function list:insert(key)
     if not self.head then
         self.head = node
         self.tail = node
+        self.length = self.length + 1
         return
     end
     self.tail.next = node

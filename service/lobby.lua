@@ -7,9 +7,10 @@ local config = require "server_config"
 local servernet = require "servernet"
 local mysql = require "skynet.db.mysql"
 local LIST = require "list"
-
 require "skynet.manager"
-local user_data = {} -- account -> user_data {account,score,gate_addr,ready,fd}
+local nums = 1
+
+local user_data = {} -- account -> user_data {account,score,gate_addr,ready,addr,fd}
 local conn = {} -- fd->account
 local command = {} -- cmd of client
 local call = {} -- cmd of other service
@@ -52,18 +53,30 @@ function call.sql_update_score(account)
     data_base:query(req)
 end
 
-function call.release_conn(addr, fd) -- 客户端断开连接时调用
+function call.disconnect_from_battle(account) -- 战斗断开调用
+    local fd = user_data[account].fd
+    local addr = user_data[account].addr
     if conn[fd] then
         call.sql_on_line_false(conn[fd])
         call.sql_update_score(conn[fd])
-        if user_data[conn[fd]].ready then
-            list:remove(conn[fd])
-        end
-        user_data[conn[fd]] = nil
         conn[fd] = nil
     end
     socket.close(fd)
-    echo(addr, fd, "disconnect lobby")
+    echo(addr, fd, "Lobby is waitting for reconnect")
+end
+
+function call.battle_end(account)
+    local fd = user_data[account].fd
+    local addr = user_data[account].addr
+    call.sql_update_score(account)
+    if conn[fd] then
+        call.sql_on_line_true(account)
+    else
+        conn[fd] = nil
+        user_data[account] = nil
+    end
+    socket.close(fd)
+    echo(addr, fd, "Battle_end kick out")
 end
 
 local function conn_sql()
@@ -85,6 +98,21 @@ function command.sign_out(fd)
     }
 end
 
+function command.quit(fd, addr)
+    if conn[fd] then
+        call.sql_on_line_false(conn[fd])
+        call.sql_update_score(conn[fd])
+        if user_data[conn[fd]].ready then
+            list:remove(conn[fd])
+        end
+        user_data[conn[fd]] = nil
+        conn[fd] = nil
+    end
+    return {
+        result = errorcode.ok
+    }
+end
+
 function command.ready(fd)
     user_data[conn[fd]].ready = true
     list:insert(conn[fd])
@@ -101,25 +129,61 @@ function command.cancel_ready(fd)
     }
 end
 
-function command.bind(fd, args)
+local function change_state_to_battle(account)
+    call.sql_on_line_false(account)
+    conn[user_data[account].fd] = nil
+    user_data[account].ready = false
+    user_data[account].gate_addr = config.gated_conf.address
+    user_data[account].gate_port = config.gated_conf.port
+end
+
+local function notify_to_battle(account, addr, fd, battle)
+    change_state_to_battle(account)
+    local args = {}
+    args.address = config.gated_conf.address
+    args.port = config.gated_conf.port
+    local msg = pack_req("notify_to_battle", args)
+    servernet.send(fd, msg)
+    skynet.call("GATED", "lua", "bind", {
+        addr = addr,
+        fd = fd,
+        account = account,
+        battle = battle
+    })
+end
+
+function command.bind(fd, addr, args)
     local token = args.token
     local data = Will_conn[token]
     data.fd = fd
+    data.addr = addr
     Will_conn[token] = nil
     conn[fd] = data.account
+    call.sql_on_line_true(data.account)
     if user_data[data.account] and user_data[data.account].gate_addr and user_data[data.account].gate_port then
         -- 重连到战斗
+        user_data[data.account].fd = fd
+        notify_to_battle(data.account, user_data[data.account].gate_addr, user_data[data.account].gate_port,
+            user_data[data.account].battle)
+        return {
+            result = errorcode.Reconnect,
+            conf = {
+                address = config.gated_conf.address,
+                port = config.gated_conf.port
+            }
+        }
     else
         user_data[data.account] = data
     end
-    call.sql_on_line_true(data.account)
     return {
-        result = errorcode.ok
+        result = errorcode.ok,
+        conf = nil
     }
 end
 
-function command.query_score(fd)
-    local user_data = user_data[conn[fd]]
+function command.query_score(fd, args)
+    local account = args.account
+    local user_data = user_data[account]
     return {
         result = errorcode.ok,
         user_data = {
@@ -129,22 +193,13 @@ function command.query_score(fd)
     }
 end
 
-local function notify_to_battle(fd)
-    local args
-    args.address = config.gated_conf.address
-    args.port = config.gated_conf.port
-    pack_req("notify_to_battle", args)
-end
-
 local function go_battle()
-    if list:get_length() >= 3 then
-        for i = 1, 3 do
+    if list:get_length() >= nums then
+        local battle = skynet.newservice("battle")
+        for i = 1, nums do
             local account = list:pop()
-            notify_to_battle(user_data[account].fd)
-            conn[user_data[account].fd] = nil
-            user_data[account].ready = false
-            user_data[account].gate_addr = config.gated_conf.address
-            user_data[account].gate_port = config.gated_conf.port
+            user_data[account].battle = battle
+            notify_to_battle(account, user_data[account].addr, user_data[account].fd, battle)
         end
     end
 end
@@ -152,19 +207,28 @@ end
 local function request(func, args, response, fd, addr)
     echo(addr, fd, "require " .. func)
     local f = command[func]
-    local res, pack
+    local res, pack, close
     if not f then
         res = {
             result = errorcode.Nofunction
         }
     else
-        res = f(fd, args)
+        if func == "bind" then
+            res = f(fd, addr, args)
+        elseif func == "quit" then
+            res = f(fd, addr, args)
+        else
+            res = f(fd, args)
+        end
     end
     echo(addr, fd, "result = " .. res.result)
     if response then
         pack = response(res)
     end
-    return pack
+    if res.result == errorcode.Reconnect then
+        close = true
+    end
+    return pack, close
 end
 
 local function accept(fd, addr)
@@ -175,22 +239,35 @@ local function accept(fd, addr)
     while true do
         local str
         str, last = servernet.recv(fd, last)
+        local type, func, args, response
         if str then
             -- 拆包
-            local type, func, args, response = host:dispatch(str)
+            type, func, args, response = host:dispatch(str)
             if type == "REQUEST" then
                 -- 调用
-                local res = request(func, args, response, fd, addr)
+                local res, close = request(func, args, response, fd, addr)
                 -- 响应结果
+                if close then
+                    return
+                end
                 if res then
                     servernet.send(fd, res)
                 end
+                
             end
         else
-            call.release_conn(addr, fd)
+            command.quit(fd, addr)
+            echo(addr, fd, "disconnect lobby")
             return
         end
-        go_battle()
+        if func == "quit" then
+            socket.close(fd)
+            return
+        end
+        if func == "ready" then
+            go_battle()
+            return
+        end
     end
 end
 

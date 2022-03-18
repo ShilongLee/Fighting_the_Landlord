@@ -8,15 +8,6 @@ proto.gatedmsg = sprotoparser.parse [[
 	session 1 : integer
 }
 
-message 1 {
-	request {
-		msgtype 0 : string	
-		time 1 : string
-		cnt 2 : integer
-		msg 3 : string
-	}
-}
-
 ]]
 
 proto.logindmsg = sprotoparser.parse [[
@@ -71,12 +62,19 @@ bind 2{
 		token 0 : integer
 	}
 	response {
+		.data {
+			address 0 : string
+			port 1 : integer
+		}
 		result 0 : integer
+		conf 1 : data
 	}
 }
 
 query_score 3{
-	request {}
+	request {
+		account 0 : string
+	}
 	response {
 		.data {
 			account 0 : string
@@ -106,6 +104,11 @@ notify_to_battle 6{
 		address 0 : string
 		port 1 : integer
 	}
+	response {}
+}
+
+quit 7{
+	request {}
 	response {}
 }
 

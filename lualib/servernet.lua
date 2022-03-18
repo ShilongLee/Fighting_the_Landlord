@@ -1,4 +1,3 @@
-package.path = "skynet/lualib/?.lua"
 local socket = require "skynet.socket"
 
 local last = ""
@@ -31,7 +30,8 @@ end
 
 function servernet.send(fd, msg)
     local pack = string.pack(">s2", msg)
-    socket.write(fd, pack)
+    local res = socket.write(fd, pack)
+    return res
 end
 
 return servernet
