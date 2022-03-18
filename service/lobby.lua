@@ -8,7 +8,7 @@ local servernet = require "servernet"
 local mysql = require "skynet.db.mysql"
 local LIST = require "list"
 require "skynet.manager"
-local nums = 1
+local nums = 2
 
 local user_data = {} -- account -> user_data {account,score,gate_addr,ready,addr,fd}
 local conn = {} -- fd->account
@@ -23,7 +23,8 @@ local list
 function call.Reg(args)
     Will_conn[args.token] = args.user_data
     Will_conn[args.token].ready = false
-    skynet.timeout(10, function()
+    Will_conn[args.token].token = args.token
+    skynet.timeout(1000, function()
         Will_conn[args.token] = nil
     end)
 end
@@ -137,16 +138,16 @@ local function change_state_to_battle(account)
     user_data[account].gate_port = config.gated_conf.port
 end
 
-local function notify_to_battle(account, addr, fd, battle)
+local function notify_to_battle(account, fd, battle)
     change_state_to_battle(account)
     local args = {}
+    args.token = user_data[account].token
     args.address = config.gated_conf.address
     args.port = config.gated_conf.port
     local msg = pack_req("notify_to_battle", args)
     servernet.send(fd, msg)
     skynet.call("GATED", "lua", "bind", {
-        addr = addr,
-        fd = fd,
+        token = user_data[account].token,
         account = account,
         battle = battle
     })
@@ -163,11 +164,16 @@ function command.bind(fd, addr, args)
     if user_data[data.account] and user_data[data.account].gate_addr and user_data[data.account].gate_port then
         -- 重连到战斗
         user_data[data.account].fd = fd
-        notify_to_battle(data.account, user_data[data.account].gate_addr, user_data[data.account].gate_port,
-            user_data[data.account].battle)
+        change_state_to_battle(data.account)
+        skynet.call("GATED", "lua", "bind", {
+            token = user_data[data.account].token,
+            account = data.account,
+            battle = user_data[data.account].battle
+        })
         return {
             result = errorcode.Reconnect,
             conf = {
+                token = user_data[data.account].token,
                 address = config.gated_conf.address,
                 port = config.gated_conf.port
             }
@@ -199,7 +205,7 @@ local function go_battle()
         for i = 1, nums do
             local account = list:pop()
             user_data[account].battle = battle
-            notify_to_battle(account, user_data[account].addr, user_data[account].fd, battle)
+            notify_to_battle(account, user_data[account].fd, battle)
         end
     end
 end
@@ -225,9 +231,6 @@ local function request(func, args, response, fd, addr)
     if response then
         pack = response(res)
     end
-    if res.result == errorcode.Reconnect then
-        close = true
-    end
     return pack, close
 end
 
@@ -245,28 +248,19 @@ local function accept(fd, addr)
             type, func, args, response = host:dispatch(str)
             if type == "REQUEST" then
                 -- 调用
-                local res, close = request(func, args, response, fd, addr)
+                local res = request(func, args, response, fd, addr)
                 -- 响应结果
-                if close then
-                    return
-                end
                 if res then
                     servernet.send(fd, res)
                 end
-                
             end
         else
             command.quit(fd, addr)
             echo(addr, fd, "disconnect lobby")
             return
         end
-        if func == "quit" then
-            socket.close(fd)
-            return
-        end
         if func == "ready" then
             go_battle()
-            return
         end
     end
 end
@@ -289,6 +283,7 @@ skynet.start(function()
         skynet.fork(function()
             echo(addr, fd, "connect lobby")
             accept(fd, addr)
+            socket.close(fd)
         end)
     end)
     skynet.register("LOBBY")

@@ -9,12 +9,20 @@ local logind_host = sproto.new(proto.logindmsg):host("package")
 local logind_pack_req = logind_host:attach(sproto.new(proto.logindmsg))
 local lobby_host = sproto.new(proto.lobbymsg):host("package")
 local lobby_pack_req = lobby_host:attach(sproto.new(proto.lobbymsg))
+local gated_host = sproto.new(proto.gatedmsg):host("package")
+local gated_pack_req = gated_host:attach(sproto.new(proto.gatedmsg))
 local fd
 local session = 1
 local last = ""
 local logged = false
 local command = {}
--- local RPC = {}
+local status = "Unsign"
+local account, password
+local allow_cmd = {"Unsign", "Signed", "Ready", "Battle"}
+allow_cmd.Unsign = {"sign_in", "sign_up", "quit"}
+allow_cmd.Signed = {"ready", "sign_out", "quit"}
+allow_cmd.Ready = {"cancel_ready"}
+allow_cmd.Battle = {"battle"}
 
 local function send_pack(msg)
     local pack = string.pack(">s2", msg)
@@ -29,11 +37,13 @@ local function connect(conf) -- {address,port}
 end
 
 local function show_command()
-    if logged then
-        print("ready\tsign_out\tquit")
-    else
-        print("sign_in\tsign_up")
+    print(status)
+    local cmd = allow_cmd[status]
+    local str = ""
+    for _, v in ipairs(cmd) do
+        str = str .. v .. "\t"
     end
+    print(str)
 end
 
 local function unpack(str)
@@ -81,6 +91,20 @@ local function call_RPC(host, pack_req, func, args)
     return res
 end
 
+local function bind_gated(res)
+    local msg = gated_pack_req("bind", {
+        token = res.token
+    }, session)
+    session = session + 1
+    print("!11111111111111111")
+    local res = call_RPC(gated_host, gated_pack_req, "message", {
+        type = "bind",
+        msg = msg
+    })
+    print("!22222222222222222")
+    print(res)
+end
+
 local function log_input()
     local account, password
     while true do
@@ -116,7 +140,7 @@ local function log_input()
 end
 
 local function sign(arg)
-    local account, password = log_input()
+    account, password = log_input()
     local cmd, args
     args = {
         account = account,
@@ -130,7 +154,7 @@ local function sign(arg)
     local res = call_RPC(logind_host, logind_pack_req, cmd, args)
     if not res then -- 失去与服务端的连接
         socket.close(fd)
-        logged = false
+        status = "Unsign"
         return
     end
     if res.result ~= errorcode.ok then
@@ -141,32 +165,44 @@ local function sign(arg)
         address = res.address,
         port = res.port
     })
-    call_RPC(lobby_host, lobby_pack_req, "bind", {
+    res = call_RPC(lobby_host, lobby_pack_req, "bind", {
         token = res.token
     })
-    command.query_score()
-    logged = true -- 防止没登陆就发出指令
+    if res.result == errorcode.Reconnect then
+        connect({
+            address = res.conf.address,
+            port = res.conf.port
+        })
+        bind_gated(res.conf)
+        status = "Battle"
+    else
+        command.query_score()
+    end
 end
 
 function command.sign_in()
     sign("in")
+    status = "Signed"
 end
 
 function command.sign_up()
     sign("up")
+    status = "Signed"
 end
 
 function command.sign_out()
     call_RPC(lobby_host, lobby_pack_req, "sign_out")
-    logged = false -- 防止没登陆就发出指令
     connect({
         address = "127.0.0.1",
         port = 6666
     })
+    status = "Unsign"
 end
 
 function command.query_score()
-    local res = call_RPC(lobby_host, lobby_pack_req, "query_score")
+    local res = call_RPC(lobby_host, lobby_pack_req, "query_score", {
+        account = account
+    })
     if res.result == errorcode.ok then
         print("user:" .. res.user_data.account .. "\nscore:" .. res.user_data.score)
     else
@@ -179,25 +215,31 @@ local function check_cmd(cmd)
         print("Command not found !")
         return false
     end
-    if cmd ~= "sign_in" and cmd ~= "sign_up" and cmd ~= "quit" and not logged then
-        print("Please sign in first !")
-        return false
-    end
-    if logged then
-        if cmd == "sign_in" or cmd == "sign_up" then
-            print("Please sign out first !")
-            return false
+    local command = allow_cmd[status]
+    for _, v in ipairs(command) do
+        if v == cmd then
+            return true
         end
     end
-    return true
+    print("Error command !")
+    return false
 end
 
 function command.ready()
     call_RPC(lobby_host, lobby_pack_req, "ready")
+    status = "Ready"
+    local res = get_response(lobby_host)
+    connect({
+        address = res.address,
+        port = res.port
+    })
+    bind_gated(res)
+    status = "Battle"
 end
 
 function command.cancel_ready()
     call_RPC(lobby_host, lobby_pack_req, "cancel_ready")
+    status = "Signed"
 end
 
 function command.quit()
