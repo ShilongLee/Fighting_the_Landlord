@@ -21,7 +21,8 @@ local server_config = {
         password = "Ll20000101",
         max_packet_size = 1024 * 1024
     },
-    lobby_max_players = 1024
+    lobby_max_players = 1024,
+    players_per_battle = 2
 }
 
 return server_config

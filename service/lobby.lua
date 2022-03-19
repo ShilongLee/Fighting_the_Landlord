@@ -8,7 +8,7 @@ local servernet = require "servernet"
 local mysql = require "skynet.db.mysql"
 local LIST = require "list"
 require "skynet.manager"
-local nums = 2
+local nums = config.players_per_battle
 
 local user_data = {} -- account -> user_data {account,score,gate_addr,ready,addr,fd}
 local conn = {} -- fd->account
