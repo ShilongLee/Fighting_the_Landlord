@@ -1,10 +1,9 @@
 local skynet = require "skynet"
--- local socket = require "skynet.socket"
+local socket = require "skynet.socketdriver"
 local gateserver = require "snax.gateserver"
 local netpack = require "skynet.netpack"
 local proto = require "pack_proto"
 local sproto = require "sproto"
-local config = require "server_config"
 local errorcode = require "error_code"
 require "skynet.manager"
 
@@ -13,7 +12,6 @@ local host = sproto.new(proto.gatedmsg):host("package")
 local conn = {}
 local Will_conn = {}
 local call = {}
-local command = {}
 local caddr = {}
 
 local function echo(addr, fd, msg)
@@ -32,19 +30,21 @@ end
 
 function handler.message(fd, msg, size)
     local data = netpack.tostring(msg, size)
-    local _, func, args, response = host:dispatch(data)
+    local _, _, args, response = host:dispatch(data)
     if args.type == "bind" then
         local _, _, args, response = host:dispatch(args.msg)
         conn[fd] = Will_conn[args.token]
         Will_conn[args.token] = nil
         echo(caddr[fd], fd, "bind success")
+        local res = response({
+            result = errorcode.ok
+        })
+        local pack = string.pack(">s2", res)
+        socket.send(fd, pack)
+    elseif args.type == "redirect" then
+        skynet.redirect(conn[fd].battle, caddr[fd], "lua", args.msg) -- 转发给battle
+        -- response
     end
-    local res = response({
-        result = errorcode.ok
-    })
-    return res  --没有回复
-    -- response_func[packagename] = response
-    -- redirect(args.msgtype, args.msg, fd)
 end
 
 function handler.connect(fd, addr)
@@ -74,3 +74,6 @@ function handler.command(func, source, ...)
 end
 
 gateserver.start(handler)
+
+--battle_end
+--battle_response

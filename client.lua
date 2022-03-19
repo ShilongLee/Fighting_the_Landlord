@@ -37,7 +37,6 @@ local function connect(conf) -- {address,port}
 end
 
 local function show_command()
-    print(status)
     local cmd = allow_cmd[status]
     local str = ""
     for _, v in ipairs(cmd) do
@@ -96,13 +95,10 @@ local function bind_gated(res)
         token = res.token
     }, session)
     session = session + 1
-    print("!11111111111111111")
     local res = call_RPC(gated_host, gated_pack_req, "message", {
         type = "bind",
         msg = msg
     })
-    print("!22222222222222222")
-    print(res)
 end
 
 local function log_input()
@@ -161,6 +157,7 @@ local function sign(arg)
         error.strerror(res.result)
         return
     end
+    status = "Signed"
     connect({
         address = res.address,
         port = res.port
@@ -182,12 +179,10 @@ end
 
 function command.sign_in()
     sign("in")
-    status = "Signed"
 end
 
 function command.sign_up()
     sign("up")
-    status = "Signed"
 end
 
 function command.sign_out()
