@@ -99,6 +99,10 @@ local function bind_gated(res)
         type = "bind",
         msg = msg
     })
+    if res.result == errorcode.ok then
+        return true
+    end
+    return false
 end
 
 local function log_input()
@@ -170,8 +174,11 @@ local function sign(arg)
             address = res.conf.address,
             port = res.conf.port
         })
-        bind_gated(res.conf)
-        status = "Battle"
+        if bind_gated(res.conf) then
+            status = "Battle"
+        else
+            status = "Unsign"
+        end
     else
         command.query_score()
     end
@@ -228,8 +235,11 @@ function command.ready()
         address = res.address,
         port = res.port
     })
-    bind_gated(res)
-    status = "Battle"
+    if bind_gated(res) then
+        status = "Battle"
+    else
+        status = "Unsign"
+    end
 end
 
 function command.cancel_ready()

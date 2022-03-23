@@ -10,17 +10,16 @@ end
 
 function list:insert(key)
     local node = self:new_node(key)
+    self.map[key] = node
+    self.length = self.length + 1
     if not self.head then
         self.head = node
         self.tail = node
-        self.length = self.length + 1
-        return
+    else
+        self.tail.next = node
+        node.pre = self.tail
+        self.tail = node
     end
-    self.tail.next = node
-    node.pre = self.tail
-    self.tail = node
-    self.length = self.length + 1
-    self.map[key] = node
 end
 
 function list:remove(key)
@@ -41,6 +40,7 @@ function list:remove(key)
         node.next.pre = node.pre
     end
     self.map[key] = nil
+
     self.length = self.length - 1
 end
 

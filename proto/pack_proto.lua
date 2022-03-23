@@ -15,6 +15,7 @@ message 1{
 	}
 	response {
 		result 0 : integer
+		msg 1 : string
 	}
 }
 
@@ -25,6 +26,15 @@ bind 2{
 	response {
 		result 0 : integer
 	}
+}
+
+notify_battle_end 3{
+	request {
+		token 0 : integer
+		address 1 : string
+		port 2 : integer
+	}
+	response {}
 }
 
 ]]
