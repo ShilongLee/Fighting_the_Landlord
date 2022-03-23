@@ -15,6 +15,7 @@ str_errcode[3] = "Error: account cannot longger than 12 characters !"
 str_errcode[4] = "Error: Password cannot longger than 12 characters !"
 str_errcode[5] = "Error: account or password is wrong  !"
 str_errcode[6] = "Error: Repeat Login !"
+str_errcode[7] = "Warning: Reconnect !"
 str_errcode[1062] = "Error: account exists !"
 
 return str_errcode

@@ -6,8 +6,9 @@ local error_code = {
     Longpasswd = 4, --密码过长
     Signfail = 5,   --账号或者密码错误
     Mutisign = 6,    --重复登录
+    Reconnect = 7,   --重新连接 
     Dupaccount = 1062,  --重复的用户名
-    Reconnect = 7   --重新连接 
+    
 }
 
 return error_code

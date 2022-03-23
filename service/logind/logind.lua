@@ -7,7 +7,7 @@ local proto = require "pack_proto"
 local errorcode = require "error_code"
 local mysql = require "skynet.db.mysql"
 local servernet = require "servernet"
-local command = {}
+local command = require "command"
 local data_base
 local token = 0
 
@@ -20,7 +20,7 @@ local function echo(addr, fd, msg)
     print("ip:" .. addr .. " fd:" .. fd .. "\t" .. msg)
 end
 
-local function check(user_data)
+local function check_args(user_data)
     user_data.account = string.gsub(user_data.account, ' ', '')
     user_data.password = string.gsub(user_data.password, ' ', '')
     if user_data.account == nil or user_data.account == "" then
@@ -35,6 +35,7 @@ local function check(user_data)
     return errorcode.ok
 end
 
+-- 通知大厅要登录的token
 local function Reg_in_lobby(res, token)
     skynet.send("LOBBY", "lua", "Reg", {
         token = token,
@@ -45,69 +46,16 @@ local function Reg_in_lobby(res, token)
     })
 end
 
-function command.sign_in(user_data)
-    local illegal = check(user_data)
-    if illegal ~= errorcode.ok then
-        return {
-            result = illegal
-        }
-    end
-    -- 从数据库取得记录
-    local req = "select * from account where account = \'" .. user_data.account .. "\';"
-    local res = data_base:query(req)
-    -- 验证账号密码
-    if next(res) == nil or user_data.password ~= res[1].password then
-        return {
-            result = errorcode.Signfail
-        }
-    end
-    if res[1].on_line == "true" then
-        return {
-            result = errorcode.Mutisign
-        }
-    end
-    token = token + 1
-    Reg_in_lobby(res, token)
-    return {
-        result = errorcode.ok,
-        address = config.lobby_conf.address,
-        port = config.lobby_conf.port,
-        token = token
-    }
-end
-
-function command.sign_up(user_data)
-    -- 检查用户名和密码是否合法
-    local illegal = check(user_data)
-    if illegal ~= errorcode.ok then
-        return {
-            result = illegal
-        }
-    end
-    -- 写入
-    local req = "insert into account(account,password,score,on_line) values( \'" .. user_data.account .. "\',\'" ..
-                    user_data.password .. "\'," .. "0 ,\'false\')" .. ";"
-    local res = data_base:query(req)
-    if res.errno and res.errno == errorcode.Dupaccount then
-        return {
-            result = errorcode.Dupaccount
-        }
-    end
-    token = token + 1
-    Reg_in_lobby({{
-        account = user_data.account,
-        score = 0
-    }}, token)
-    return {
-        result = errorcode.ok,
-        address = config.lobby_conf.address,
-        port = config.lobby_conf.port,
-        token = token
-    }
-end
-
 local function request(func, args, response, fd, addr)
     echo(addr, fd, "require " .. func)
+    -- 检查参数
+    local illegal = check_args(args)
+    if illegal ~= errorcode.ok then
+        return {
+            result = illegal
+        }
+    end
+    -- 调用方法
     local f = command[func]
     local res, pack
     if not f then
@@ -115,9 +63,10 @@ local function request(func, args, response, fd, addr)
             result = errorcode.Nofunction
         }
     else
-        res = f(args)
+        res = f(data_base, Reg_in_lobby, args)
     end
     echo(addr, fd, "result = " .. res.result)
+    -- 封装响应包
     if response then
         pack = response(res)
     end
