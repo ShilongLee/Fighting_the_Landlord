@@ -5,7 +5,6 @@
 
 ## directory
 - etc : Config files
-- examples : Skynet usage example
 - luaclib : C library for lua
 - lualib : Lua library
 - proto : Communication protocol between server and client
