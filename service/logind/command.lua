@@ -1,12 +1,21 @@
 local errorcode = require "error_code"
 local config = require "server_config"
 local logind = require "logind.logind"
+local TOKEN = require "token"
+local sql_cmd = require "sql_command"
+local enum = require "enum"
 local command = {}
 
 function command.sign_in(user_data)
+    -- 检查用户名和密码是否合法
+    local illegal = logind.check_args(user_data)
+    if illegal ~= errorcode.ok then
+        return {
+            result = illegal
+        }
+    end
     -- 从数据库取得记录
-    local req = "select * from account where account = \'" .. user_data.account .. "\';"
-    local res = logind.data_base:query(req)
+    local res = sql_cmd.query_line_by_account(logind.data_base, config.sql_table[1], user_data.account)
     -- 验证账号密码
     if next(res) == nil or user_data.password ~= res[1].password then
         return {
@@ -14,42 +23,46 @@ function command.sign_in(user_data)
         }
     end
     -- 验证重复登录
-    if res[1].on_line == "true" then
+    if res[1].online == enum.lobby then
         return {
             result = errorcode.Mutisign
         }
     end
-    logind.token = logind.token + 1
-    logind.Reg_in_lobby(res, logind.token)
+    -- 获取token
+    local token = TOKEN.get_token(logind.data_base, res[1].uid, user_data.password)
     return {
         result = errorcode.ok,
         address = config.lobby_conf.address,
         port = config.lobby_conf.port,
-        token = logind.token
+        token = token
     }
 end
 
 function command.sign_up(user_data)
-    -- 写入
-    local req = "insert into account(account,password,score,on_line) values( \'" .. user_data.account .. "\',\'" ..
-                    user_data.password .. "\'," .. "0 ,\'false\')" .. ";"
-    local res = logind.data_base:query(req)
+    -- 检查用户名和密码是否合法
+    local illegal = logind.check_args(user_data)
+    if illegal ~= errorcode.ok then
+        return {
+            result = illegal
+        }
+    end
+    local uid = logind:get_uid()
+    -- 插入新用户
+    local res = sql_cmd.insert_line_account(logind.data_base, config.sql_table[1], uid, user_data.account,
+        user_data.password)
     -- 验证重复注册
     if res.errno and res.errno == errorcode.Dupaccount then
         return {
             result = errorcode.Dupaccount
         }
     end
-    logind.token = logind.token + 1
-    logind.Reg_in_lobby({{
-        account = user_data.account,
-        score = 0
-    }}, logind.token)
+    -- 获取token
+    local token = TOKEN.get_token(logind.data_base, uid, user_data.password)
     return {
         result = errorcode.ok,
         address = config.lobby_conf.address,
         port = config.lobby_conf.port,
-        token = logind.token
+        token = token
     }
 end
 

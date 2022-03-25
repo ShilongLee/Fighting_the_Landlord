@@ -10,10 +10,12 @@ local sql_cmd = require "sql_command"
 local call = require "call" -- cmd of other service
 local command = require "lobby.command" -- cmd of client
 local lobby = require "lobby.lobby"
+local enum = require "enum"
+local Log = require "logger"
 require "skynet.manager"
 
 local function request(func, args, response, fd, addr)
-    lobby.echo(addr, fd, "require " .. func)
+    Log.echo(addr, fd, "require " .. func)
     local f = command[func]
     local res, pack, close
     if not f then
@@ -23,7 +25,7 @@ local function request(func, args, response, fd, addr)
     else
         res = f(fd, addr, args)
     end
-    lobby.echo(addr, fd, "result = " .. res.result)
+    Log.echo(addr, fd, "result = " .. res.result)
     if response then
         pack = response(res)
     end
@@ -52,8 +54,9 @@ local function accept(fd, addr)
                 end
             end
         else
-            command.quit(fd, addr, args)
-            lobby.echo(addr, fd, "disconnect lobby")
+            -- 断开连接
+            lobby:disconnect(fd)
+            Log.echo(addr, fd, "disconnect lobby")
             return
         end
         if func == "ready" then
@@ -80,7 +83,7 @@ skynet.start(function()
     end)
     socket.start(listenfd, function(fd, addr)
         skynet.fork(function()
-            lobby.echo(addr, fd, "connect lobby")
+            Log.echo(addr, fd, "connect lobby")
             accept(fd, addr)
             socket.close(fd)
         end)

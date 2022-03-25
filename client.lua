@@ -5,12 +5,16 @@ local sproto = require "sproto"
 local proto = require "pack_proto"
 local errorcode = require "error_code"
 local error = require "error"
+local config = require "server_config"
+
 local logind_host = sproto.new(proto.logindmsg):host("package")
 local logind_pack_req = logind_host:attach(sproto.new(proto.logindmsg))
 local lobby_host = sproto.new(proto.lobbymsg):host("package")
 local lobby_pack_req = lobby_host:attach(sproto.new(proto.lobbymsg))
 local gated_host = sproto.new(proto.gatedmsg):host("package")
 local gated_pack_req = gated_host:attach(sproto.new(proto.gatedmsg))
+local battle_host = sproto.new(proto.battlemsg):host("package")
+local battle_pack_req = battle_host:attach(sproto.new(proto.battlemsg))
 local fd
 local session = 1
 local last = ""
@@ -22,11 +26,21 @@ local allow_cmd = {"Unsign", "Signed", "Ready", "Battle"}
 allow_cmd.Unsign = {"sign_in", "sign_up", "quit"}
 allow_cmd.Signed = {"ready", "sign_out", "quit"}
 allow_cmd.Ready = {"cancel_ready"}
-allow_cmd.Battle = {"battle"}
+allow_cmd.Battle = {"choose_career"}
 
 local function send_pack(msg)
     local pack = string.pack(">s2", msg)
     socket.send(fd, pack)
+end
+
+local function send_to_battle(msg)
+    local pack = gated_pack_req("message", {
+        type = "redirect",
+        msg = msg
+    }, session)
+    pack = string.pack(">s2", pack)
+    socket.send(fd, pack)
+    session = session + 1
 end
 
 local function connect(conf) -- {address,port}
@@ -245,6 +259,33 @@ end
 function command.cancel_ready()
     call_RPC(lobby_host, lobby_pack_req, "cancel_ready")
     status = "Signed"
+end
+
+local function input_career(str)
+    ::input_career::
+    print(str)
+    local career = io.read("l")
+    for k, _ in pairs(config.career) do
+        if k == career then
+            return career
+        end
+    end
+    print("Error: Career not exist !")
+    goto input_career
+end
+
+function command.choose_career()
+    local config = config.career
+    local str = ""
+    for k, v in pairs(config) do
+        str = str .. k .. "\t"
+    end
+    local career = input_career(str)
+    local msg = battle_pack_req("choose_career", {
+        career = config[career]
+    }, session)
+    session = session + 1
+    send_to_battle(msg)
 end
 
 function command.quit()

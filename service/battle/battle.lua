@@ -1,19 +1,21 @@
-local skynet = require "skynet"
-require "skynet.manager"
+local ROLE = require "battle.role"
+local battle = {}
 
-local function battle_end()
-    local res   --游戏结果
-    skynet.call("GATED", "lua", "battle_end",res)
+function battle:add_role(account)
+    self.roles[account] = ROLE:new()
 end
 
-skynet.start(function()
-    -- skynet.dispatch("lua", function(session, source, msg)
-    -- local _, _, args, response = host:dispatch(args.msg)
-    -- if session then
-    --     skynet.ret(skynet.pack(f(data_base, user_data, conn, Will_conn, ...))) -- 回应消息
-    -- else
-    --     f(data_base, user_data, conn, Will_conn, ...)
-    -- end
-    -- end)
-    skynet.register("BATTLE")
-end)
+function battle:start()
+
+end
+
+function battle:new()
+    local t = {}
+    setmetatable(t, {
+        __index = self
+    })
+    t.roles = {} -- account -> role
+    return t
+end
+
+return battle

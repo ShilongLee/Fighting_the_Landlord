@@ -12,6 +12,6 @@ luaservice = root .. "skynet/service/?.lua;" .. root .. "service/?.lua;" .. root
 lualoader = root .. "skynet/lualib/loader.lua"
 lua_path = root .. "skynet/lualib/?.lua;" .. root .. "skynet/lualib/?/init.lua;" .. root .. "lualib/?.lua;" .. root ..
                "etc/?.lua;" .. root .. "proto/?.lua;" .. root .. "service/?.lua;" .. root .. "service/lobby/?.lua;" ..
-               root .. "service/logind/?.lua;" .. root .. "service/battle/?.lua;" .. root .. "service/gated/?.lua;"
+               root .. "service/logind/?.lua;" .. root .. "service/battle/?.lua;" .. root .. "service/gated/?.lua;".. root .."service/battle/?.lua"
 lua_cpath = root .. "skynet/luaclib/?.so;" .. root .. "luaclib/?.so"
 cpath = root .. "skynet/cservice/?.so"

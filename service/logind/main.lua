@@ -9,31 +9,11 @@ local mysql = require "skynet.db.mysql"
 local servernet = require "servernet"
 local command = require "logind.command"
 local logind = require "logind.logind"
+local Log = require "logger"
 
-local function check_args(user_data)
-    user_data.account = string.gsub(user_data.account, ' ', '')
-    user_data.password = string.gsub(user_data.password, ' ', '')
-    if user_data.account == nil or user_data.account == "" then
-        return errorcode.Nilaccount
-    end
-    if #user_data.account > 12 then
-        return errorcode.Longaccount
-    end
-    if #user_data.password > 12 then
-        return errorcode.Longpasswd
-    end
-    return errorcode.ok
-end
-
+-- 调用方法函数
 local function request(func, args, response, fd, addr)
-    logind.echo(addr, fd, "require " .. func)
-    -- 检查参数
-    local illegal = check_args(args)
-    if illegal ~= errorcode.ok then
-        return {
-            result = illegal
-        }
-    end
+    Log.echo(addr, fd, "require " .. func)
     -- 调用方法
     local f = command[func]
     local res, pack
@@ -44,7 +24,7 @@ local function request(func, args, response, fd, addr)
     else
         res = f(args)
     end
-    logind.echo(addr, fd, "result = " .. res.result)
+    Log.echo(addr, fd, "result = " .. res.result)
     -- 封装响应包
     if response then
         pack = response(res)
@@ -52,6 +32,7 @@ local function request(func, args, response, fd, addr)
     return pack
 end
 
+-- 根据协议拆分客户端包
 local function accept(fd, addr)
     -- 初始化文件描述符和解包函数
     local last = ""
@@ -73,7 +54,7 @@ local function accept(fd, addr)
                 end
             end
         else
-            logind.echo(addr, fd, "disconnect logind")
+            Log.echo(addr, fd, "disconnect logind")
             socket.close(fd)
             return
         end
@@ -81,13 +62,15 @@ local function accept(fd, addr)
 end
 
 skynet.start(function()
+    -- 打开数据库
     local conf = config.mysql_conf
     logind.data_base = mysql.connect(conf)
     local conf = config.logind_conf
+    -- 监听客户端连接
     local listen_fd = socket.listen(conf.address, conf.port)
     socket.start(listen_fd, function(fd, addr)
         skynet.fork(function()
-            logind.echo(addr, fd, "connected logind")
+            Log.echo(addr, fd, "connected logind")
             accept(fd, addr)
         end)
     end)

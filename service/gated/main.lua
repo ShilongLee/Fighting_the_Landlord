@@ -18,7 +18,7 @@ function handler.message(fd, msg, size)
     local _, _, args, response = host:dispatch(data)
     local res
     if args.type == "redirect" then
-        res = skynet.redirect(gated.conn[fd].battle, gated.caddr[fd], "lua", args.msg) -- 转发给battle
+        res = skynet.call(gated.conn[fd].battle, "lua", "dispatch_client_pack", args.msg) -- 转发给battle
     else
         local _, func, args, response = host:dispatch(args.msg)
         local f = command[func]

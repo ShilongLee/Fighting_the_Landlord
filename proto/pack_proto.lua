@@ -21,7 +21,7 @@ message 1{
 
 bind 2{
 	request {
-		token 0 : integer
+		token 0 : string
 	}
 	response {
 		result 0 : integer
@@ -30,7 +30,7 @@ bind 2{
 
 notify_battle_end 3{
 	request {
-		token 0 : integer
+		token 0 : string
 		address 1 : string
 		port 2 : integer
 	}
@@ -54,7 +54,7 @@ sign_in 1 {
 		result 0 : integer
 		address 1 : string
 		port 2 : integer
-		token 3 : integer
+		token 3 : string
 	}
 }
 
@@ -67,7 +67,7 @@ sign_up 2 {
 		result 0 : integer
 		address 1 : string
 		port 2 : integer
-		token 3 :integer
+		token 3 :string
 	}
 }
 
@@ -88,11 +88,11 @@ sign_out 1 {
 
 bind 2{
 	request {
-		token 0 : integer
+		token 0 : string
 	}
 	response {
 		.data {
-			token 0 : integer
+			token 0 : string
 			address 1 : string
 			port 2 : integer
 		}
@@ -131,7 +131,7 @@ cancel_ready 5{
 
 notify_to_battle 6{
 	request {
-		token 0 : integer
+		token 0 : string
 		address 1 : string
 		port 2 : integer
 	}
@@ -141,6 +141,23 @@ notify_to_battle 6{
 quit 7{
 	request {}
 	response {}
+}
+
+]]
+
+proto.battlemsg = sprotoparser.parse [[
+.package {
+	type 0 : integer
+	session 1 : integer
+}
+
+choose_career 1 {
+	request {
+		career 0 : integer
+	}
+	response {
+		result 0 : integer
+	}
 }
 
 ]]

@@ -22,7 +22,12 @@ local server_config = {
         max_packet_size = 1024 * 1024
     },
     lobby_max_players = 1024,
-    players_per_battle = 2
+    players_per_battle = 2,
+    init_hp = 10,
+    career = {
+        Warrior = 1
+    },
+    sql_table = {"account", "lobby"}
 }
 
 return server_config
