@@ -1,4 +1,4 @@
-local errorcode = require "error_code"
+local error = require "error"
 local config = require "server_config"
 local logind = require "logind.logind"
 local TOKEN = require "token"
@@ -9,7 +9,7 @@ local command = {}
 function command.sign_in(user_data)
     -- 检查用户名和密码是否合法
     local illegal = logind.check_args(user_data)
-    if illegal ~= errorcode.ok then
+    if illegal ~= error.ok then
         return {
             result = illegal
         }
@@ -19,19 +19,19 @@ function command.sign_in(user_data)
     -- 验证账号密码
     if next(res) == nil or user_data.password ~= res[1].password then
         return {
-            result = errorcode.Signfail
+            result = error.Signfail
         }
     end
     -- 验证重复登录
-    if res[1].online == enum.lobby then
+    if res[1].online == enum.status.lobby then
         return {
-            result = errorcode.Mutisign
+            result = error.Mutisign
         }
     end
     -- 获取token
     local token = TOKEN.get_token(logind.data_base, res[1].uid, user_data.password)
     return {
-        result = errorcode.ok,
+        result = error.ok,
         address = config.lobby_conf.address,
         port = config.lobby_conf.port,
         token = token
@@ -41,7 +41,7 @@ end
 function command.sign_up(user_data)
     -- 检查用户名和密码是否合法
     local illegal = logind.check_args(user_data)
-    if illegal ~= errorcode.ok then
+    if illegal ~= error.ok then
         return {
             result = illegal
         }
@@ -51,15 +51,15 @@ function command.sign_up(user_data)
     local res = sql_cmd.insert_line_account(logind.data_base, config.sql_table[1], uid, user_data.account,
         user_data.password)
     -- 验证重复注册
-    if res.errno and res.errno == errorcode.Dupaccount then
+    if res.errno and res.errno == error.Dupaccount then
         return {
-            result = errorcode.Dupaccount
+            result = error.Dupaccount
         }
     end
     -- 获取token
     local token = TOKEN.get_token(logind.data_base, uid, user_data.password)
     return {
-        result = errorcode.ok,
+        result = error.ok,
         address = config.lobby_conf.address,
         port = config.lobby_conf.port,
         token = token

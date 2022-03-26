@@ -1,6 +1,6 @@
 local skynet = require "skynet"
 local socket = require "skynet.socket"
-local errorcode = require "error_code"
+local error = require "error"
 local proto = require "pack_proto"
 local sproto = require "sproto"
 local config = require "server_config"
@@ -10,7 +10,6 @@ local sql_cmd = require "sql_command"
 local call = require "call" -- cmd of other service
 local command = require "lobby.command" -- cmd of client
 local lobby = require "lobby.lobby"
-local enum = require "enum"
 local Log = require "logger"
 require "skynet.manager"
 
@@ -18,14 +17,16 @@ local function request(func, args, response, fd, addr)
     Log.echo(addr, fd, "require " .. func)
     local f = command[func]
     local res, pack, close
+    -- 调用方法函数
     if not f then
         res = {
-            result = errorcode.Nofunction
+            result = error.Nofunction
         }
     else
         res = f(fd, addr, args)
     end
     Log.echo(addr, fd, "result = " .. res.result)
+    -- 封装响应包
     if response then
         pack = response(res)
     end
@@ -59,8 +60,11 @@ local function accept(fd, addr)
             Log.echo(addr, fd, "disconnect lobby")
             return
         end
-        if func == "ready" then
-            lobby:go_battle()
+        -- 每条命令的额外处理
+        if lobby:extra(func, fd, addr) then
+            lobby:disconnect(fd)
+            Log.echo(addr, fd, "disconnect lobby")
+            return
         end
     end
 end
@@ -69,7 +73,7 @@ skynet.start(function()
     -- 连接数据库，清除在线状态
     local conf = config.mysql_conf
     lobby.data_base = mysql.connect(conf)
-    sql_cmd.clear_online(lobby.data_base)
+    sql_cmd.clear_online(lobby.data_base, config.sql_table[1])
     -- 监听端口
     local conf = config.lobby_conf
     local listenfd = socket.listen(conf.address, conf.port)

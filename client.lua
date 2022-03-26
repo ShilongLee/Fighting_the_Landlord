@@ -3,7 +3,6 @@ package.path = "skynet/lualib/?.lua;service/?.lua;etc/?.lua;lualib/?.lua;proto/?
 local socket = require "clientsocket"
 local sproto = require "sproto"
 local proto = require "pack_proto"
-local errorcode = require "error_code"
 local error = require "error"
 local config = require "server_config"
 
@@ -21,7 +20,7 @@ local last = ""
 local logged = false
 local command = {}
 local status = "Unsign"
-local account, password
+local account, password, token
 local allow_cmd = {"Unsign", "Signed", "Ready", "Battle"}
 allow_cmd.Unsign = {"sign_in", "sign_up", "quit"}
 allow_cmd.Signed = {"ready", "sign_out", "quit"}
@@ -106,14 +105,14 @@ end
 
 local function bind_gated(res)
     local msg = gated_pack_req("bind", {
-        token = res.token
+        token = token
     }, session)
     session = session + 1
     local res = call_RPC(gated_host, gated_pack_req, "message", {
         type = "bind",
         msg = msg
     })
-    if res.result == errorcode.ok then
+    if res.result == error.ok then
         return true
     end
     return false
@@ -171,19 +170,20 @@ local function sign(arg)
         status = "Unsign"
         return
     end
-    if res.result ~= errorcode.ok then
-        error.strerror(res.result)
+    if res.result ~= error.ok then
+        error.print_error(res.result)
         return
     end
     status = "Signed"
+    token = res.token
     connect({
         address = res.address,
         port = res.port
     })
     res = call_RPC(lobby_host, lobby_pack_req, "bind", {
-        token = res.token
+        token = token
     })
-    if res.result == errorcode.Reconnect then
+    if res.result == error.Reconnect then
         connect({
             address = res.conf.address,
             port = res.conf.port
@@ -207,22 +207,21 @@ function command.sign_up()
 end
 
 function command.sign_out()
-    call_RPC(lobby_host, lobby_pack_req, "sign_out")
-    connect({
-        address = "127.0.0.1",
-        port = 6666
-    })
+    call_RPC(lobby_host, lobby_pack_req, "sign_out", {})
+    fd = socket.connect("127.0.0.1", 6666)
+    -- connect({
+    --     address = "127.0.0.1",
+    --     port = 6666
+    -- })
     status = "Unsign"
 end
 
 function command.query_score()
-    local res = call_RPC(lobby_host, lobby_pack_req, "query_score", {
-        account = account
-    })
-    if res.result == errorcode.ok then
-        print("user:" .. res.user_data.account .. "\nscore:" .. res.user_data.score)
+    local res = call_RPC(lobby_host, lobby_pack_req, "query_score", {})
+    if res.result == error.ok then
+        print("user:" .. account .. "\nscore:" .. res.score)
     else
-        error.strerror(res.result)
+        error.print_error(res.result)
     end
 end
 
@@ -242,14 +241,14 @@ local function check_cmd(cmd)
 end
 
 function command.ready()
-    call_RPC(lobby_host, lobby_pack_req, "ready")
+    call_RPC(lobby_host, lobby_pack_req, "ready", {})
     status = "Ready"
     local res = get_response(lobby_host)
     connect({
         address = res.address,
         port = res.port
     })
-    if bind_gated(res) then
+    if bind_gated() then
         status = "Battle"
     else
         status = "Unsign"
@@ -257,7 +256,7 @@ function command.ready()
 end
 
 function command.cancel_ready()
-    call_RPC(lobby_host, lobby_pack_req, "cancel_ready")
+    call_RPC(lobby_host, lobby_pack_req, "cancel_ready", {})
     status = "Signed"
 end
 

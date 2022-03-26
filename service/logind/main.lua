@@ -4,7 +4,7 @@ local socket = require "skynet.socket"
 local config = require "server_config"
 local sproto = require "sproto"
 local proto = require "pack_proto"
-local errorcode = require "error_code"
+local error = require "error"
 local mysql = require "skynet.db.mysql"
 local servernet = require "servernet"
 local command = require "logind.command"
@@ -19,7 +19,7 @@ local function request(func, args, response, fd, addr)
     local res, pack
     if not f then
         res = {
-            result = errorcode.Nofunction
+            result = error.Nofunction
         }
     else
         res = f(args)

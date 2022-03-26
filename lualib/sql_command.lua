@@ -7,9 +7,12 @@ function sql.insert_line_account(data_base, table, uid, account, password)
 end
 
 function sql.insert_line_lobby(data_base, table, token, gated_addr, gated_fd, battle_service)
+    gated_addr = gated_addr or "null"
+    gated_fd = gated_fd or "null"
+    battle_service = battle_service or "null"
     local req =
-        "insert into " .. table .. "(token, gated_addr, gated_fd, addr, fd, battle_service) values(\"" .. token .. "\"," ..
-            "\"" .. gated_addr .. "\"" .. "," .. gated_fd .. "," .. battle_service .. ");"
+        "insert into " .. table .. "(token, gated_addr, gated_fd,  battle_service) values(\"" .. token .. "\"," .. "\"" ..
+            gated_addr .. "\"" .. "," .. gated_fd .. "," .. battle_service .. ");"
     return data_base:query(req)
 end
 

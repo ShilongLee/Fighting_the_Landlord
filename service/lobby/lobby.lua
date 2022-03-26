@@ -6,7 +6,8 @@ local LIST = require "list"
 local proto = require "pack_proto"
 local sproto = require "sproto"
 local enum = require "enum"
-local errorcode = require "error_code"
+local socket = require "skynet.socket"
+local error = require "error"
 local host = sproto.new(proto.lobbymsg):host("package")
 local pack_req = host:attach(sproto.new(proto.lobbymsg))
 
@@ -21,23 +22,16 @@ local lobby = {
     list = LIST:new()
 }
 
-function lobby:notify_to_battle(account, fd, battle)
-    -- sql_cmd.update_online_by_token(self.data_base,token,0)
-    -- sql_cmd.on_line_false(self.data_base, account)
-    self.conn[self.user_data[account].fd] = nil
-    self.user_data[account].ready = false
-    self.user_data[account].gate_addr = config.gated_conf.address
-    self.user_data[account].gate_port = config.gated_conf.port
+function lobby:notify_to_battle(fd, battle_service)
+    local token = self.conn[fd]
+    sql_cmd.update_online_by_token(self.data_base, config.sql_table[1], token, enum.status.battle)
+    self.user_data[token].gate_addr = config.gated_conf.address
+    self.user_data[token].gate_port = config.gated_conf.port
+    self.user_data[token].battle_service = battle_service
     local args = {}
-    args.token = self.user_data[account].token
     args.address = config.gated_conf.address
     args.port = config.gated_conf.port
     local msg = pack_req("notify_to_battle", args)
-    skynet.call("GATED", "lua", "Reg", {
-        token = self.user_data[account].token,
-        account = account,
-        battle = battle
-    })
     servernet.send(fd, msg)
 end
 
@@ -45,16 +39,43 @@ function lobby:go_battle()
     if self.list:get_length() >= config.players_per_battle then
         local battle_service = skynet.newservice("battle/main")
         local players_accounts = {}
-        for i = 1, config.players_per_battle do
-            local account = self.list:pop()
-            self.user_data[account].battle_service = battle_service
-            self:notify_to_battle(account, self.user_data[account].fd, battle_service)
-            table.insert(players_accounts, account)
+        for _ = 1, config.players_per_battle do
+            local token = self.list:pop()
+            self:notify_to_battle(self.user_data[token].fd, battle_service)
+            table.insert(players_accounts, token)
         end
-        local battle = skynet.call(battle_service, "lua", "init_battle", players_accounts)
+        -- local battle = skynet.call(battle_service, "lua", "init_battle", players_accounts)
         -- skynet.fork(function()
         --     battle:start()
         -- end)
+    end
+end
+
+function lobby:init_user_data(fd, addr, token)
+    local data_account = sql_cmd.query_line_by_token(self.data_base, config.sql_table[1], token)
+    local data_lobby = sql_cmd.query_line_by_token(self.data_base, config.sql_table[2], token)
+    if not next(data_account) then
+        return {
+            result = error.Invalidtoken,
+            conf = nil
+        }
+    end
+    if not next(data_lobby) then
+        sql_cmd.insert_line_lobby(self.data_base, config.sql_table[2], token)
+        data_lobby = sql_cmd.query_line_by_token(self.data_base, config.sql_table[2], token)
+    end
+    self.user_data[token] = data_lobby[1]
+    self.user_data[token].score = data_account[1].score
+    self.user_data[token].status = data_account[1].status
+    self.user_data[token].addr = addr
+    self.user_data[token].fd = fd
+end
+
+function lobby:extra(func, fd, addr)
+    if func == "ready" then
+        self:go_battle()
+    elseif func == "sign_out" then
+        return true
     end
 end
 
@@ -63,27 +84,23 @@ function lobby:disconnect(fd)
         local token = self.conn[fd]
         local data = self.user_data[token]
         sql_cmd.update_score_by_token(self.data_base, config.sql_table[1], token, data.score)
-        if data.status == enum.ready then
-            self.list:remove(token)
-        elseif data.status == enum.battle then
+        if data.status == enum.status.battle then
             local res = sql_cmd.query_line_by_token(self.data_base, config.sql_table[2], token)
             if not res then
                 sql_cmd.insert_line_lobby(self.data_base, config.sql_table[2], token, data.gate_addr, data.gate_port,
                     data.battle_service)
-            else
-                sql_cmd.update_lobbyline_by_token(self.data_base, config.sql_table[2], token, data.gate_addr,
-                    data.gate_port, data.battle_service)
             end
         else
+            if data.status == enum.status.ready then
+                self.list:remove(token)
+            end
             sql_cmd.delete_line_by_token(self.data_base, config.sql_table[2], token)
-            sql_cmd.update_online_by_token(self.data_base, config.sql_table[1], token, enum.outline)
+            sql_cmd.update_online_by_token(self.data_base, config.sql_table[1], token, enum.status.outline)
         end
         self.user_data[token] = nil
         self.conn[fd] = nil
     end
-    return {
-        result = errorcode.ok
-    }
+    socket.close(fd)
 end
 
 return lobby

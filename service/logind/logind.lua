@@ -1,4 +1,4 @@
-local errorcode = require "error_code"
+local error = require "error"
 
 local logind = {
     data_base = nil,
@@ -10,15 +10,15 @@ function logind.check_args(user_data)
     user_data.account = string.gsub(user_data.account, ' ', '')
     user_data.password = string.gsub(user_data.password, ' ', '')
     if user_data.account == nil or user_data.account == "" then
-        return errorcode.Nilaccount
+        return error.Nilaccount
     end
     if #user_data.account > 12 then
-        return errorcode.Longaccount
+        return error.Longaccount
     end
     if #user_data.password > 12 then
-        return errorcode.Longpasswd
+        return error.Longpasswd
     end
-    return errorcode.ok
+    return error.ok
 end
 
 function logind:get_uid()

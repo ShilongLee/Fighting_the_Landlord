@@ -5,8 +5,8 @@ local lobby = "lobby/main"
 local gated = "gated/main"
 
 skynet.start(function()
-    local a = skynet.newservice(logind)
-    -- skynet.newservice(lobby)
+    skynet.newservice(logind)
+    skynet.newservice(lobby)
     -- local gate = skynet.newservice(gated)
     -- local conf = config.gated_conf
     -- skynet.call(gate, "lua", "open", conf)

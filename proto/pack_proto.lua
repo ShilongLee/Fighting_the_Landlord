@@ -30,9 +30,8 @@ bind 2{
 
 notify_battle_end 3{
 	request {
-		token 0 : string
-		address 1 : string
-		port 2 : integer
+		address 0 : string
+		port 1 : integer
 	}
 	response {}
 }
@@ -92,7 +91,6 @@ bind 2{
 	}
 	response {
 		.data {
-			token 0 : string
 			address 1 : string
 			port 2 : integer
 		}
@@ -102,16 +100,10 @@ bind 2{
 }
 
 query_score 3{
-	request {
-		account 0 : string
-	}
+	request {}
 	response {
-		.data {
-			account 0 : string
-            score 1 : integer
-		}
 		result 0 : integer
-		user_data 1 : data
+		score 1 : integer
 	}
 }
 
@@ -131,15 +123,9 @@ cancel_ready 5{
 
 notify_to_battle 6{
 	request {
-		token 0 : string
 		address 1 : string
 		port 2 : integer
 	}
-	response {}
-}
-
-quit 7{
-	request {}
 	response {}
 }
 
