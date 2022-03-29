@@ -73,7 +73,6 @@ function lobby:init_user_data(fd, addr, token)
     self.user_data[token].status = data_account[1].status
     self.user_data[token].addr = addr
     self.user_data[token].fd = fd
-    print(self.user_data[token].battle_service)
 end
 
 function lobby:extra(func, fd, addr)

@@ -10,6 +10,19 @@ local call = {}
 
 function call.register(source, args)
     gated.Will_conn[args.token] = args.battle_service
+    if not gated.battle[args.battle_service] then
+        gated.battle[args.battle_service] = {}
+    end
+    local exist = false
+    for _, token in ipairs(gated.battle[args.battle_service]) do
+        if token == args.token then
+            exist = true
+            break
+        end
+    end
+    if not exist then
+        table.insert(gated.battle[args.battle_service], args.token)
+    end
     skynet.timeout(1000, function()
         gated.Will_conn[args.token] = nil
     end)
