@@ -12,26 +12,30 @@ local host = sproto.new(proto.lobbymsg):host("package")
 local pack_req = host:attach(sproto.new(proto.lobbymsg))
 
 local lobby = {
-    --                                                  account                   account
-    -- user_data = {}, -- account -> user_data {account,score,gate_addr,gate_port,status,addr,fd,token,battle}
-    -- conn = {}, -- fd -> account
-    -- Will_conn = {}, -- token -> user_data {account,score,ready}
     conn = {}, -- fd -> token
-    user_data = {}, -- token -> user_data {score,gate_addr,gate_port,ready,addr,fd,battle}
+    user_data = {}, -- token -> user_data {score,gate_addr,gate_port,status,addr,fd,battle}
     data_base = nil,
     list = LIST:new()
 }
 
 function lobby:notify_to_battle(fd, battle_service)
     local token = self.conn[fd]
-    sql_cmd.update_online_by_token(self.data_base, config.sql_table[1], token, enum.status.battle)
+    sql_cmd.update_status_by_token(self.data_base, config.sql_table[1], token, enum.status.battle)
+
+    self.user_data[token].status = enum.status.battle
     self.user_data[token].gate_addr = config.gated_conf.address
     self.user_data[token].gate_port = config.gated_conf.port
     self.user_data[token].battle_service = battle_service
+    sql_cmd.update_lobbyline_by_token(self.data_base, config.sql_table[2], token, self.user_data[token].gate_addr,
+        self.user_data[token].gate_port, self.user_data[token].battle_service)
     local args = {}
     args.address = config.gated_conf.address
     args.port = config.gated_conf.port
     local msg = pack_req("notify_to_battle", args)
+    skynet.call("GATED", "lua", "register", {
+        token = token,
+        battle_service = battle_service
+    })
     servernet.send(fd, msg)
 end
 
@@ -69,6 +73,7 @@ function lobby:init_user_data(fd, addr, token)
     self.user_data[token].status = data_account[1].status
     self.user_data[token].addr = addr
     self.user_data[token].fd = fd
+    print(self.user_data[token].battle_service)
 end
 
 function lobby:extra(func, fd, addr)
@@ -84,18 +89,12 @@ function lobby:disconnect(fd)
         local token = self.conn[fd]
         local data = self.user_data[token]
         sql_cmd.update_score_by_token(self.data_base, config.sql_table[1], token, data.score)
-        if data.status == enum.status.battle then
-            local res = sql_cmd.query_line_by_token(self.data_base, config.sql_table[2], token)
-            if not res then
-                sql_cmd.insert_line_lobby(self.data_base, config.sql_table[2], token, data.gate_addr, data.gate_port,
-                    data.battle_service)
-            end
-        else
+        if data.status ~= enum.status.battle then
             if data.status == enum.status.ready then
                 self.list:remove(token)
             end
             sql_cmd.delete_line_by_token(self.data_base, config.sql_table[2], token)
-            sql_cmd.update_online_by_token(self.data_base, config.sql_table[1], token, enum.status.outline)
+            sql_cmd.update_status_by_token(self.data_base, config.sql_table[1], token, enum.status.outline)
         end
         self.user_data[token] = nil
         self.conn[fd] = nil

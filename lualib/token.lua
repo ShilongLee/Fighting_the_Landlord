@@ -7,7 +7,7 @@ local token = {}
 local function check_token(res)
     local token = res[1].token
     local timediff = os.time() - tonumber(string.sub(token, -10))
-    if res[1].online == enum.status.battle or timediff <= enum.tokendeadline then
+    if res[1].status == enum.status.battle or timediff <= enum.tokendeadline then
         return true
     end
     return false

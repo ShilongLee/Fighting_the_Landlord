@@ -23,7 +23,7 @@ function command.sign_in(user_data)
         }
     end
     -- 验证重复登录
-    if res[1].online == enum.status.lobby then
+    if res[1].status == enum.status.lobby then
         return {
             result = error.Mutisign
         }

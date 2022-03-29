@@ -1,7 +1,7 @@
 local sql = {}
 
 function sql.insert_line_account(data_base, table, uid, account, password)
-    local req = "insert into " .. table .. "(uid,account,password,token,score,online) values(" .. uid .. ",\"" ..
+    local req = "insert into " .. table .. "(uid,account,password,token,score,status) values(" .. uid .. ",\"" ..
                     account .. "\",\"" .. password .. "\",null,0,0);"
     return data_base:query(req)
 end
@@ -31,8 +31,8 @@ function sql.query_line_by_token(data_base, table, token)
     return data_base:query(req)
 end
 
-function sql.update_online_by_token(data_base, table, token, status)
-    local req = "update " .. table .. " set online = " .. status .. " where token = \"" .. token .. "\";"
+function sql.update_status_by_token(data_base, table, token, status)
+    local req = "update " .. table .. " set status = " .. status .. " where token = \"" .. token .. "\";"
     return data_base:query(req)
 end
 
@@ -47,7 +47,7 @@ function sql.update_token_by_uid(data_base, table, uid, token)
 end
 
 function sql.update_lobbyline_by_token(data_base, table, token, gated_addr, gated_fd, battle_service)
-    local req = "update " .. table .. "set token = " .. "\"" .. token .. "\"" .. "," .. "gated_addr = " .. "\"" ..
+    local req = "update " .. table .. " set token = " .. "\"" .. token .. "\"" .. "," .. "gated_addr = " .. "\"" ..
                     gated_addr .. "\"" .. "," .. "gated_fd = " .. gated_fd .. "," .. "battle_service = " ..
                     battle_service .. " where token = " .. "\"" .. token .. "\";"
     return data_base:query(req)
@@ -58,13 +58,18 @@ function sql.delete_line_by_token(data_base, table, token)
     return data_base:query(req)
 end
 
-function sql.clear_online(data_base, table)
-    local req = "update " .. table .. " set online = 0 where account like \"%\";"
+function sql.clear_status(data_base, table)
+    local req = "update " .. table .. " set status = 0 where account like \"%\";"
     return data_base:query(req)
 end
 
 function sql.clear_token(data_base, table)
     local req = "update " .. table .. " set token = null where account like \"%\";"
+    return data_base:query(req)
+end
+
+function sql.clear_lobby(data_base)
+    local req = "truncate table lobby;"
     return data_base:query(req)
 end
 

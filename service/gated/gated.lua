@@ -1,12 +1,7 @@
 local gated = {
-    conn = {}, -- fd -> {token,account,battle}
-    Will_conn = {}, -- token -> {token,account,battle}
-    caddr = {}, -- fd -> addr
-    battle = {} -- battle -> fd
+    conn = {}, -- fd -> {token,addr,battle_service}
+    Will_conn = {}, -- token -> {battle}
+    battle = {} -- battle_service -> {{fd,token},...}
 }
-
-function gated.echo(addr, fd, msg)
-    print("ip:" .. addr .. " fd:" .. fd .. "\t" .. msg)
-end
 
 return gated

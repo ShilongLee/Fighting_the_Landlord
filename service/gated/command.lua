@@ -1,22 +1,20 @@
-local errorcode = require "error_code"
+local error = require "error"
 local gated = require "gated.gated"
+local Log = require "logger"
 local command = {}
-
-local function echo(addr, fd, msg)
-    print("ip:" .. addr .. " fd:" .. fd .. "\t" .. msg)
-end
 
 function command.bind(fd, args)
     local token = args.token
-    gated.conn[fd] = gated.Will_conn[token]
+    gated.conn[fd].battle_service = gated.Will_conn[token]
     gated.Will_conn[token] = nil
-    if not gated.battle[gated.conn[fd].battle] then
-        gated.battle[gated.conn[fd].battle] = {}
+    gated.conn[fd].token = token
+    if not gated.battle[gated.conn[fd].battle_service] then
+        gated.battle[gated.conn[fd].battle_service] = {}
     end
-    table.insert(gated.battle[gated.conn[fd].battle], fd)
-    echo(gated.caddr[fd], fd, "bind success")
+    table.insert(gated.battle[gated.conn[fd].battle_service], fd)
+    Log.echo(gated.conn[fd].addr, fd, "bind success")
     return {
-        result = errorcode.ok
+        result = error.ok
     }
 end
 

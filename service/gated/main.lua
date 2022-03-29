@@ -4,10 +4,11 @@ local gateserver = require "snax.gateserver"
 local netpack = require "skynet.netpack"
 local proto = require "pack_proto"
 local sproto = require "sproto"
-local errorcode = require "error_code"
+local error = require "error"
 local command = require "gated.command"
 local call = require "gated.call"
 local gated = require "gated.gated"
+local Log = require "logger"
 require "skynet.manager"
 
 local handler = {}
@@ -18,7 +19,7 @@ function handler.message(fd, msg, size)
     local _, _, args, response = host:dispatch(data)
     local res
     if args.type == "redirect" then
-        res = skynet.call(gated.conn[fd].battle, "lua", "dispatch_client_pack", args.msg) -- 转发给battle
+        res = skynet.call(gated.conn[fd].battle_service, "lua", "dispatch_client_pack", args.msg) -- 转发给battle
     else
         local _, func, args, response = host:dispatch(args.msg)
         local f = command[func]
@@ -26,7 +27,7 @@ function handler.message(fd, msg, size)
         res = response(res)
     end
     res = response({
-        result = errorcode.ok,
+        result = error.ok,
         msg = res
     })
     local pack = string.pack(">s2", res)
@@ -36,14 +37,13 @@ end
 
 function handler.connect(fd, addr)
     gateserver.openclient(fd)
-    gated.caddr[fd] = addr
-    gated.echo(addr, fd, "connect gated")
+    gated.conn[fd] = {}
+    gated.conn[fd].addr = addr
+    Log.echo(addr, fd, "connect gated")
 end
 
 function handler.disconnect(fd)
-    skynet.call("LOBBY", "lua", "disconnect_from_battle", gated.conn[fd].account)
-    gated.echo(gated.caddr[fd], fd, "disconnect gated")
-    gated.caddr[fd] = nil
+    Log.echo(gated.conn[fd].addr, fd, "disconnect gated")
     gated.conn[fd] = nil
     gateserver.closeclient(fd)
 end
@@ -59,6 +59,3 @@ function handler.command(func, source, ...)
 end
 
 gateserver.start(handler)
-
--- battle_end
--- battle_response

@@ -54,14 +54,9 @@ local function accept(fd, addr)
                     servernet.send(fd, res)
                 end
             end
-        else
-            -- 断开连接
-            lobby:disconnect(fd)
-            Log.echo(addr, fd, "disconnect lobby")
-            return
         end
-        -- 每条命令的额外处理
-        if lobby:extra(func, fd, addr) then
+        -- 断开连接或每条命令的额外处理
+        if not str or lobby:extra(func, fd, addr) then
             lobby:disconnect(fd)
             Log.echo(addr, fd, "disconnect lobby")
             return
@@ -73,7 +68,8 @@ skynet.start(function()
     -- 连接数据库，清除在线状态
     local conf = config.mysql_conf
     lobby.data_base = mysql.connect(conf)
-    sql_cmd.clear_online(lobby.data_base, config.sql_table[1])
+    sql_cmd.clear_status(lobby.data_base, config.sql_table[1])
+    sql_cmd.clear_lobby(lobby.data_base)
     -- 监听端口
     local conf = config.lobby_conf
     local listenfd = socket.listen(conf.address, conf.port)

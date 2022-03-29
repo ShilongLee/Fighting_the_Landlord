@@ -8,6 +8,7 @@ local command = {}
 
 function command.ready(fd, addr, args)
     lobby.user_data[lobby.conn[fd]].status = enum.status.ready
+    sql_cmd.update_status_by_token(lobby.data_base,config.sql_table[1],lobby.conn[fd],enum.status.ready)
     lobby.list:insert(lobby.conn[fd])
     return {
         result = error.ok
@@ -40,6 +41,10 @@ function command.bind(fd, addr, args)
 
     if lobby.user_data[token].status == enum.status.battle then
         -- 重连到战斗
+        skynet.call("GATED", "lua", "register", {
+            token = token,
+            battle_service = lobby.user_data[token].battle_service
+        })
         return {
             result = error.Reconnect,
             conf = {
@@ -49,7 +54,7 @@ function command.bind(fd, addr, args)
         }
     else
         -- 更改状态为在大厅中
-        sql_cmd.update_online_by_token(lobby.data_base, config.sql_table[1], token, enum.status.lobby)
+        sql_cmd.update_status_by_token(lobby.data_base, config.sql_table[1], token, enum.status.lobby)
         lobby.user_data[token].status = enum.status.lobby
     end
 

@@ -8,17 +8,14 @@ local pack_req = host:attach(sproto.new(proto.gatedmsg))
 local gated = require "gated.gated"
 local call = {}
 
-function call.Reg(source, args)
-    gated.Will_conn[args.token] = args
+function call.register(source, args)
+    gated.Will_conn[args.token] = args.battle_service
     skynet.timeout(1000, function()
-        if gated.Will_conn[args.token] then
-            skynet.call("LOBBY", "lua", "disconnect_from_battle", args.account)
-        end
         gated.Will_conn[args.token] = nil
     end)
 end
 
-function call.battle_end(source,args)
+function call.battle_end(source, args)
     if gated.battle[source] then
         for _, fd in ipairs(gated.battle[source]) do
             -- notify_battle_end  连接lobby
