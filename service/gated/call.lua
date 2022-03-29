@@ -23,27 +23,28 @@ function call.register(source, args)
     if not exist then
         table.insert(gated.battle[args.battle_service], args.token)
     end
-    skynet.timeout(1000, function()
-        gated.Will_conn[args.token] = nil
-    end)
 end
 
 function call.battle_end(source, args)
     if gated.battle[source] then
-        for _, fd in ipairs(gated.battle[source]) do
+        for _, token in ipairs(gated.battle[source]) do
+            gated.Will_conn[token] = nil
             -- notify_battle_end  连接lobby
             skynet.call("LOBBY", "lua", "battle_end", {
-                account = gated.conn[fd].account,
+                token = token,
                 res = args
             })
             local msg = pack_req({
-                token = gated.conn[fd].token,
                 address = config.lobby_conf.address,
                 port = config.lobby_conf.port
             })
             local pack = string.pack(">s2", msg)
-            socket.send(fd, pack)
+            local fd = gated:get_fd(token)
+            if fd then
+                socket.send(fd, pack)
+            end
         end
+        gated.battle[source] = nil
     end
 end
 

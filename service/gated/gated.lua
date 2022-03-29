@@ -4,4 +4,12 @@ local gated = {
     battle = {} -- battle_service -> {token...}
 }
 
+function gated:get_fd(token)
+    for fd, tab in pairs(self.conn) do
+        if tab.token == token then
+            return fd
+        end
+    end
+end
+
 return gated

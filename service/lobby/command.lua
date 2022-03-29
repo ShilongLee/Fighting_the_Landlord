@@ -17,6 +17,7 @@ end
 
 function command.cancel_ready(fd, addr, args)
     lobby.user_data[lobby.conn[fd]].status = enum.status.lobby
+    sql_cmd.update_status_by_token(lobby.data_base,config.sql_table[1],lobby.conn[fd],enum.status.lobby)
     lobby.list:remove(lobby.conn[fd])
     return {
         result = error.ok
