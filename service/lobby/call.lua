@@ -1,8 +1,5 @@
-local socket = require "skynet.socket"
-local skynet = require "skynet"
 local sql_cmd = require "sql_command"
 local lobby = require "lobby.lobby"
-local Log = require "logger"
 local enum = require "enum"
 local config = require "server_config"
 local call = {}

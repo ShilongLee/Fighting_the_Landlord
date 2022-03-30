@@ -32,7 +32,6 @@ function handler.message(fd, msg, size)
     })
     local pack = string.pack(">s2", res)
     socket.send(fd, pack)
-    -- 战斗已经结束
 end
 
 function handler.connect(fd, addr)
