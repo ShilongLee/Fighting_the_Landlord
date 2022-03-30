@@ -42,10 +42,6 @@ function command.bind(fd, addr, args)
 
     if lobby.user_data[token].status == enum.status.battle then
         -- 重连到战斗
-        skynet.call("GATED", "lua", "register", {
-            token = token,
-            battle_service = lobby.user_data[token].battle_service
-        })
         return {
             result = error.Reconnect,
             conf = {
