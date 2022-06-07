@@ -2,7 +2,8 @@
     "files.associations": {
         "lua.h": "c",
         "cerrno": "c",
-        "fstream": "c"
+        "fstream": "c",
+        "typeinfo": "c"
     },
     "lua.targetVersion": "5.3"
 }
