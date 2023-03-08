@@ -27,6 +27,13 @@ function CMD.kick(fd)
     end
 end
 
+function CMD.kick_all()
+    for fd in pairs(connection) do
+        connection[fd] = nil
+        socketdriver.close(fd)
+    end
+end
+
 function CMD.force_kick(fd)
     local c = connection[fd]
     if c ~= nil then
