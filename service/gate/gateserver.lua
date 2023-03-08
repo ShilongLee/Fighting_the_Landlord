@@ -1,6 +1,7 @@
-local skynet = require "skynet"
+local Skynet = require "skynet"
 local netpack = require "skynet.netpack"
 local socketdriver = require "skynet.socketdriver"
+require "skynet.manager"
 
 local watchdog
 local socket    -- listen socket
@@ -10,7 +11,7 @@ local client_number = 0
 local CMD = setmetatable({}, { __gc = function() netpack.clear(queue) end })
 local nodelay = false
 local conf = {} -- address, port, maxclient, nodelay
-watchdog, conf = ...
+watchdog = ...
 
 local connection = {} -- fd -> {fd, addr, client, agent}
 
@@ -62,16 +63,20 @@ function CMD.open()
     socketdriver.start(socket)
 end
 
+function CMD.init(config)
+    conf = config
+end
+
 local MSG = {}
 
-skynet.register_protocol {
+Skynet.register_protocol {
     name = "client",
-    id = skynet.PTYPE_CLIENT,
+    id = Skynet.PTYPE_CLIENT,
 }
 
-skynet.register_protocol {
+Skynet.register_protocol {
     name = "socket",
-    id = skynet.PTYPE_SOCKET,	-- PTYPE_SOCKET = 6
+    id = Skynet.PTYPE_SOCKET,	-- PTYPE_SOCKET = 6
     unpack = function ( msg, sz )
         return netpack.filter( queue, msg, sz)
     end,
@@ -89,11 +94,11 @@ local function dispatch_msg(fd, msg, sz)
     local agent = c.agent
     if agent then
         -- It's safe to redirect msg directly , gateserver framework will not free msg.
-        skynet.redirect(agent, c.client, "client", fd, msg, sz)
+        Skynet.redirect(agent, c.client, "client", fd, msg, sz)
     else
-        skynet.send(watchdog, "lua", "socket", "data", fd, skynet.tostring(msg, sz))
+        Skynet.send(watchdog, "lua", "socket", "data", fd, Skynet.tostring(msg, sz))
         -- skynet.tostring will copy msg to a string, so we must free msg here.
-        skynet.trash(msg, sz)
+        Skynet.trash(msg, sz)
     end
 end
 
@@ -104,7 +109,7 @@ local function dispatch_queue()
     if fd then
         -- may dispatch even the handler.message blocked
         -- If the handler.message never block, the queue should be empty, so only fork once and then exit.
-        skynet.fork(dispatch_queue)
+        Skynet.fork(dispatch_queue)
         dispatch_msg(fd, msg, sz)
 
         for fd, msg, sz in netpack.pop, queue do
@@ -128,7 +133,7 @@ function MSG.open(fd, addr)
         ip = addr
     }
     client_number = client_number + 1
-    skynet.send(watchdog, "lua", "socket", "open", fd, addr)
+    Skynet.send(watchdog, "lua", "socket", "open", fd, addr)
 end
 
 function MSG.close(fd)
@@ -137,7 +142,7 @@ function MSG.close(fd)
 		connection[fd] = nil
 	end
     client_number = client_number - 1
-    skynet.send(watchdog, "lua", "socket", "close", fd)
+    Skynet.send(watchdog, "lua", "socket", "close", fd)
 end
 
 function MSG.error(fd, msg)
@@ -146,25 +151,25 @@ function MSG.error(fd, msg)
 		connection[fd] = nil
 	end
     if fd == socket then
-        skynet.error("gateserver accept error:", msg)
+        Skynet.error("gateserver accept error:", msg)
     else
         socketdriver.shutdown(fd)
     end
-    skynet.send(watchdog, "lua", "socket", "error", fd)
+    Skynet.send(watchdog, "lua", "socket", "error", fd)
 end
 
 function MSG.warning(fd, size)
-    skynet.send(watchdog, "lua", "socket", "warning", fd)
+    Skynet.send(watchdog, "lua", "socket", "warning", fd)
 end
 
 local function init()
-    skynet.dispatch("lua", function(_, address, cmd, ...)
+    Skynet.dispatch("lua", function(_, address, cmd, ...)
         local f = CMD[cmd]
         if f then
-            skynet.ret(skynet.pack(f(address, ...)))
+            Skynet.ret(Skynet.pack(f(...)))
         end
     end)
-    skynet.register(".gate")
+    Skynet.register(".gate")
 end
 
-skynet.start(init)
+Skynet.start(init)

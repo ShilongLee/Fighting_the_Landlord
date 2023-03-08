@@ -30,7 +30,8 @@ function M:open()
 end
 
 function M:_init(conf)
-    self.addr = Skynet.newservice("gateserver", Skynet.self(), conf)
+    self.addr = Skynet.newservice("gateserver", Skynet.self())
+    Skynet.send(self.addr, "lua", "init", conf)
 end
 
 return M
