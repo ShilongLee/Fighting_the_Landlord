@@ -1,9 +1,7 @@
-local Skynet = require "skynet"
+local Skynet = require "skynet.manager"
 local netpack = require "skynet.netpack"
 local socketdriver = require "skynet.socketdriver"
-require "skynet.manager"
 
-local watchdog
 local socket    -- listen socket
 local queue     -- message queue
 local maxclient -- max client
@@ -11,7 +9,7 @@ local client_number = 0
 local CMD = setmetatable({}, { __gc = function() netpack.clear(queue) end })
 local nodelay = false
 local conf = {} -- address, port, maxclient, nodelay
-watchdog = ...
+local watchdog = ...
 
 local connection = {} -- fd -> {fd, addr, client, agent}
 
@@ -133,15 +131,16 @@ function MSG.open(fd, addr)
         ip = addr
     }
     client_number = client_number + 1
+    socketdriver.start(fd)
     Skynet.send(watchdog, "lua", "socket", "open", fd, addr)
 end
 
 function MSG.close(fd)
+    client_number = client_number - 1
     local c = connection[fd]
 	if c then
 		connection[fd] = nil
 	end
-    client_number = client_number - 1
     Skynet.send(watchdog, "lua", "socket", "close", fd)
 end
 
@@ -163,7 +162,7 @@ function MSG.warning(fd, size)
 end
 
 local function init()
-    Skynet.dispatch("lua", function(_, address, cmd, ...)
+    Skynet.dispatch("lua", function(_, _, cmd, ...)
         local f = CMD[cmd]
         if f then
             Skynet.ret(Skynet.pack(f(...)))
